@@ -7,42 +7,32 @@ const User = require("../models/User");
 const router = express.Router();
 
 /* ================= REGISTER ================= */
-router.post(
-  "/register",
-  [
-    body("fullName").notEmpty(),
-    body("email").isEmail(),
-    body("password").isLength({ min: 8 })
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+router.post("/register", async (req, res) => {
+  try {
+    const { fullName, email, password } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
     }
 
-    try {
-      const { fullName, email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-      }
+    const user = new User({
+      fullName,
+      email,
+      password: hashedPassword,
+    });
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+    await user.save();
 
-      await User.create({
-        fullName,
-        email,
-        password: hashedPassword
-      });
-
-      res.status(201).json({ message: "User registered successfully" });
-
-    } catch (err) {
-      res.status(500).json({ message: "Server error" });
-    }
+    res.status(201).json({ message: "User registered successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
-);
+});
+
 
 /* ================= LOGIN ================= */
 router.post(
